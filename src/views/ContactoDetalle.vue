@@ -176,6 +176,7 @@ const toggleFavorito = () => {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #f9fafb;
+  color: #374151;
 }
 
 .etiqueta {

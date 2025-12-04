@@ -1,4 +1,11 @@
+<!--
+  Layout principal de la app:
+  - Encabezado con marca y navegación hacia la lista y creación de contactos.
+  - Zona principal renderizada por el router.
+  - Servicios globales de PrimeVue (toasts y diálogos de confirmación).
+-->
 <script setup>
+// Componentes de navegación del router y servicios de PrimeVue usados a nivel global.
 import { RouterLink, RouterView } from 'vue-router'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -6,6 +13,7 @@ import ConfirmDialog from 'primevue/confirmdialog'
 
 <template>
   <div class="app-shell">
+    <!-- Encabezado con marca y enlaces de navegación -->
     <header class="app-header">
       <div class="brand">
         <span class="dot" />
@@ -17,10 +25,12 @@ import ConfirmDialog from 'primevue/confirmdialog'
       </nav>
     </header>
 
+    <!-- Zona donde el router inserta la vista activa -->
     <main class="app-main">
       <RouterView />
     </main>
 
+    <!-- Servicios globales para notificaciones y diálogos -->
     <Toast />
     <ConfirmDialog />
   </div>

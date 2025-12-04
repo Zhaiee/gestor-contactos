@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+
+// watch para depurar cambios en contactos (chat GPT)
+
+const STORAGE_KEY = 'gestor-contactos-data' // Almacenamiento local (ChatGPT)
 
 const baseContacto = () => ({
   nombre: '',
@@ -11,26 +15,23 @@ const baseContacto = () => ({
 })
 
 export const useContactosStore = defineStore('contactos', () => {
-  const contactos = ref([
-    {
-      id: 1,
-      nombre: 'Juan Perez',
-      email: 'juan@example.com',
-      telefono: '600000000',
-      empresa: 'Empresa A',
-      favorito: false,
-      estado: 'Activo',
-    },
-    {
-      id: 2,
-      nombre: 'Ana Lopez',
-      email: 'ana@example.com',
-      telefono: '611111111',
-      empresa: 'Empresa B',
-      favorito: true,
-      estado: 'Inactivo',
-    },
-  ])
+  const contactos = ref([])
+
+  // ChatGPT: Cargar contactos desde el almacenamiento local al iniciar la tienda
+  const guardados = localStorage.getItem(STORAGE_KEY)
+
+  if (guardados) {
+    try {
+      contactos.value = JSON.parse(guardados)
+    } catch (error) {
+      console.error('Error al leer contactos de localStorage: ', error)
+      contactos.value = []
+    }
+  } else {
+    contactos.value = []
+  }
+
+
 
   const nextId = () =>
     contactos.value.length
@@ -74,16 +75,22 @@ export const useContactosStore = defineStore('contactos', () => {
     return true
   }
 
+
+
   const totalContactos = computed(() => contactos.value.length)
-  const totalFavoritos = computed(
-    () => contactos.value.filter(c => c.favorito).length
-  )
-  const contactosActivos = computed(
-    () => contactos.value.filter(c => c.estado === 'Activo')
+  const totalFavoritos = computed(() => contactos.value.filter(c => c.favorito).length)
+  const contactosActivos = computed(() => contactos.value.filter(c => c.estado === 'Activo'))
+  const contactoPorId = (id) => computed(() => contactos.value.find(c => c.id === Number(id)))
+
+  // ChatGPT: Guardar cambios automáticamente en localStorage
+  watch(
+    contactos,
+    (nuevosContactos) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nuevosContactos))
+    },
+    { deep: true }
   )
 
-  const contactoPorId = (id) =>
-    computed(() => contactos.value.find(c => c.id === Number(id)))
 
   return {
     contactos,

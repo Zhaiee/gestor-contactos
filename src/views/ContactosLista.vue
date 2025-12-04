@@ -55,6 +55,11 @@ const confirmEliminar = (id) => {
     },
   })
 }
+
+
+
+
+
 </script>
 
 <template>
@@ -81,23 +86,29 @@ const confirmEliminar = (id) => {
         icon="pi pi-plus"
         @click="goNuevo"
       />
+
+      
+
     </header>
 
     <div class="toolbar">
-      <span class="p-input-icon-left">
-        <i class="pi pi-search" />
+      <div class="search-wrapper">
+      <i class="pi pi-search search-icon" />
         <InputText
           v-model="filtro"
           placeholder="Buscar por nombre o email"
+          class="search-input"
         />
-      </span>
+      </div>
     </div>
+
 
     <DataTable
       :value="contactosFiltrados"
       responsiveLayout="scroll"
       paginator
-      :rows="8"
+      :rows="4"                       
+      :rowsPerPageOptions="[4, 8, 16]"   
       :emptyMessage="'No hay contactos'"
     >
       <Column field="nombre" header="Nombre" sortable />
@@ -158,6 +169,34 @@ const confirmEliminar = (id) => {
 </template>
 
 <style scoped>
+
+
+/* separación lupa - input */
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;              
+}
+
+.search-icon {
+  font-size: 1.1rem;
+}
+
+.search-input :deep(.p-inputtext),
+.search-input {
+  width: 260px;
+}
+/* fin separación lupa - input */
+
+/* margen entre las filas de la tabla y el paginador inferior */
+:deep(.p-paginator) {
+  margin-top: 8px;
+}
+
+
+
+
 .panel {
   background: #fff;
   border-radius: 16px;

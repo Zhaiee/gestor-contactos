@@ -189,4 +189,11 @@ label {
   gap: 10px;
   align-items: center;
 }
+
+.p-error {
+  color: red !important;
+  font-weight: 600;
+}
+
+
 </style>
