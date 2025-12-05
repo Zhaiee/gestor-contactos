@@ -1,28 +1,56 @@
 <!--
   Layout principal de la app:
-  - Encabezado con marca y navegación hacia la lista y creación de contactos.
+  - Encabezado con marca y navegacion hacia la lista y creacion de contactos.
   - Zona principal renderizada por el router.
-  - Servicios globales de PrimeVue (toasts y diálogos de confirmación).
+  - Servicios globales de PrimeVue (toasts y dialogos de confirmacion).
 -->
 <script setup>
-// Componentes de navegación del router y servicios de PrimeVue usados a nivel global.
-import { RouterLink, RouterView } from 'vue-router'
+import { computed, watch } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
+import { useAuthStore } from './stores/auth'
+import { useContactosStore } from './stores/contactos'
+
+const authStore = useAuthStore()
+const contactosStore = useContactosStore()
+const router = useRouter()
+
+const usuario = computed(() => authStore.user)
+
+const logout = async () => {
+  await authStore.logout()
+  router.push('/login')   // Obligamos a ir al login tras cerrar sesion
+}
+
+// Sincroniza la suscripcion de contactos con el usuario actual
+watch(
+  usuario,
+  () => {
+    contactosStore.initContactos()
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
   <div class="app-shell">
-    <!-- Encabezado con marca y enlaces de navegación -->
+    <!-- Encabezado con marca y enlaces de navegacion -->
     <header class="app-header">
       <div class="brand">
         <span class="dot" />
         <h1>Gestor de Contactos</h1>
       </div>
-      <nav class="app-nav">
+      
+      <!-- Menu solo si hay usuario logueado -->
+      <nav v-if="usuario" class="app-nav">
         <RouterLink to="/contactos" class="nav-link">Contactos</RouterLink>
         <RouterLink to="/contactos/nuevo" class="nav-link">Nuevo contacto</RouterLink>
+        <button class="nav-link nav-button" type="button" @click="logout">
+          Cerrar sesion
+        </button>
       </nav>
+
     </header>
 
     <!-- Zona donde el router inserta la vista activa -->
@@ -30,7 +58,7 @@ import ConfirmDialog from 'primevue/confirmdialog'
       <RouterView />
     </main>
 
-    <!-- Servicios globales para notificaciones y diálogos -->
+    <!-- Servicios globales para notificaciones y dialogos -->
     <Toast />
     <ConfirmDialog />
   </div>
@@ -94,6 +122,12 @@ import ConfirmDialog from 'primevue/confirmdialog'
 .nav-link.router-link-active {
   background: #eef2ff;
   color: #4f46e5;
+}
+
+.nav-button {
+  border: none;
+  cursor: pointer;
+  background: transparent;
 }
 
 .app-main {

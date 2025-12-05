@@ -18,15 +18,26 @@ const contactoInicial = {
   estado: 'Activo',
 }
 
-const guardar = (datos) => {
-  const id = store.crearContacto(datos)
-  toast.add({
-    severity: 'success',
-    summary: 'Contacto creado',
-    detail: 'Contacto creado correctamente',
-    life: 3000,
-  })
-  router.push(`/contactos/${id}`)
+const guardar = async (datos) => {
+  try {
+    const id = await store.crearContacto(datos)
+    toast.add({
+      severity: 'success',
+      summary: 'Contacto creado',
+      detail: 'Contacto creado correctamente',
+      life: 3000,
+    })
+    router.push(`/contactos/${id}`)
+  } catch (error) {
+    const mensaje = error?.message || 'No se pudo crear el contacto'
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: mensaje,
+      life: 4000,
+    })
+    console.error('Error al crear contacto', error)
+  }
 }
 
 const cancelar = () => router.push('/contactos')

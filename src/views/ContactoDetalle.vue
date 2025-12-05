@@ -1,11 +1,13 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+import { db } from '../firebase'
 import { useContactosStore } from '../stores/contactos'
 
 const route = useRoute()
@@ -13,13 +15,11 @@ const router = useRouter()
 const toast = useToast()
 const store = useContactosStore()
 
-const contacto = computed(
-  () => store.contactoPorId(route.params.id).value
-)
+const contacto = computed(() => store.contactoPorId(route.params.id).value)
+const usuarioRegistrado = ref(null)
 
 const volver = () => router.push('/contactos')
-const irEditar = () =>
-  router.push(`/contactos/${route.params.id}/editar`)
+const irEditar = () => router.push(`/contactos/${route.params.id}/editar`)
 
 const toggleFavorito = () => {
   if (!contacto.value) return
@@ -32,6 +32,51 @@ const toggleFavorito = () => {
     life: 2000,
   })
 }
+
+const cargarUsuarioRegistrado = async () => {
+  if (!contacto.value || !contacto.value.email) {
+    usuarioRegistrado.value = null
+    return
+  }
+
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('email', '==', contacto.value.email)
+    )
+    const snap = await getDocs(q)
+
+    if (!snap.empty) {
+      const docSnap = snap.docs[0]
+      usuarioRegistrado.value = {
+        id: docSnap.id,
+        ...docSnap.data(),
+      }
+    } else {
+      usuarioRegistrado.value = null
+    }
+  } catch (error) {
+    console.error('Error al verificar usuario registrado', error)
+    usuarioRegistrado.value = null
+  }
+}
+
+const iniciarChat = () => {
+  if (!usuarioRegistrado.value) return
+  router.push(`/chat/${usuarioRegistrado.value.id}`)
+}
+
+const invitar = () => {
+  router.push('/registro')
+}
+
+watch(
+  contacto,
+  () => {
+    cargarUsuarioRegistrado()
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -111,6 +156,31 @@ const toggleFavorito = () => {
             <span>{{ contacto.empresa || '-' }}</span>
           </li>
         </ul>
+
+        <div class="user-section">
+          <h4>Registro de usuario</h4>
+          <div v-if="usuarioRegistrado" class="user-card success">
+            <p class="status">Este contacto esta registrado en el sistema</p>
+            <p class="name">{{ usuarioRegistrado.displayName || usuarioRegistrado.email }}</p>
+            <Button
+              label="Iniciar chat"
+              icon="pi pi-comments"
+              severity="success"
+              @click="iniciarChat"
+            />
+          </div>
+          <div v-else class="user-card warn">
+            <p class="status">Este contacto NO esta registrado</p>
+            <p class="muted small">Puedes invitarle a crear una cuenta</p>
+            <Button
+              label="Invitar"
+              icon="pi pi-send"
+              severity="info"
+              outlined
+              @click="invitar"
+            />
+          </div>
+        </div>
       </template>
     </Card>
   </section>
@@ -191,6 +261,49 @@ const toggleFavorito = () => {
 
 .ml-2 {
   margin-left: 8px;
+}
+
+.user-section {
+  margin-top: 18px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.user-card {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: grid;
+  gap: 6px;
+}
+
+.user-card.success {
+  border-color: #c7ead3;
+  background: #f1fbf5;
+}
+
+.user-card.warn {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.status {
+  margin: 0;
+  font-weight: 700;
+  color: #111827;
+}
+
+.name {
+  margin: 0;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.small {
+  font-size: 0.9rem;
 }
 
 @media (max-width: 640px) {
