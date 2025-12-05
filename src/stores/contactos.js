@@ -1,15 +1,16 @@
+// src/stores/contactos.js
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
   addDoc,
   updateDoc,
   deleteDoc,
   doc,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -29,75 +30,83 @@ const baseContacto = () => ({
 export const useContactosStore = defineStore('contactos', () => {
   const contactos = ref([])
   const cargando = ref(false)
-  const suscripcion = ref(null)
+  let unsubscribe = null
+
+  const authStore = useAuthStore()
+
+  const limpiarSuscripcion = () => {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
 
   const initContactos = () => {
-    const authStore = useAuthStore()
-    const usuario = authStore.user
+    limpiarSuscripcion()
+    contactos.value = []
 
-    if (suscripcion.value) {
-      suscripcion.value()
-      suscripcion.value = null
-    }
+    const user = authStore.user
+    if (!user) return
 
-    if (!usuario) {
-      contactos.value = []
-      cargando.value = false
-      return
-    }
+    cargando.value = true
 
-    const consulta = query(
+    const q = query(
       collection(db, 'contactos'),
-      where('userId', '==', usuario.uid),
+      where('userId', '==', user.uid),
       orderBy('nombre')
     )
 
-    cargando.value = true
-    suscripcion.value = onSnapshot(
-      consulta,
-      (snapshot) => {
-        contactos.value = snapshot.docs.map(registro => ({
-          id: registro.id,
-          ...registro.data(),
+    unsubscribe = onSnapshot(
+      q,
+      snapshot => {
+        contactos.value = snapshot.docs.map(d => ({
+          id: d.id,      // 👈 id de Firestore (string)
+          ...d.data(),
         }))
         cargando.value = false
       },
-      (error) => {
-        console.error('Error al suscribirse a contactos', error)
+      err => {
+        console.error('Error al escuchar contactos:', err)
         cargando.value = false
       }
     )
   }
 
+  // Cuando cambie el usuario (login/logout), recargamos contactos
+  watch(
+    () => authStore.user,
+    () => {
+      initContactos()
+    },
+    { immediate: true }
+  )
+
   const crearContacto = async (contacto) => {
-    const authStore = useAuthStore()
-    const usuario = authStore.user
-    if (!usuario) {
+    const user = authStore.user
+    if (!user) {
       throw new Error('Usuario no autenticado')
     }
 
     const nuevo = {
       ...baseContacto(),
       ...contacto,
-      userId: usuario.uid,
+      userId: user.uid,
       creadoEn: serverTimestamp(),
     }
 
-    try {
-      const docRef = await addDoc(collection(db, 'contactos'), nuevo)
-      return docRef.id
-    } catch (error) {
-      console.error('Error al crear contacto', error)
-      throw error
-    }
+    const refDoc = await addDoc(collection(db, 'contactos'), nuevo)
+    // El onSnapshot actualizará contactos.value automáticamente
+    return refDoc.id
   }
 
   const actualizarContacto = async (id, datosActualizados) => {
     try {
-      await updateDoc(doc(db, 'contactos', id), { ...datosActualizados })
+      await updateDoc(doc(db, 'contactos', id), {
+        ...datosActualizados,
+      })
       return true
-    } catch (error) {
-      console.error('Error al actualizar contacto', error)
+    } catch (e) {
+      console.error('Error al actualizar contacto', e)
       return false
     }
   }
@@ -106,8 +115,8 @@ export const useContactosStore = defineStore('contactos', () => {
     try {
       await deleteDoc(doc(db, 'contactos', id))
       return true
-    } catch (error) {
-      console.error('Error al eliminar contacto', error)
+    } catch (e) {
+      console.error('Error al eliminar contacto', e)
       return false
     }
   }
@@ -116,20 +125,26 @@ export const useContactosStore = defineStore('contactos', () => {
     const contacto = contactos.value.find(c => c.id === id)
     if (!contacto) return false
 
-    const favorito = !contacto.favorito
+    const nuevoValor = !contacto.favorito
     try {
-      await updateDoc(doc(db, 'contactos', id), { favorito })
+      await updateDoc(doc(db, 'contactos', id), { favorito: nuevoValor })
       return true
-    } catch (error) {
-      console.error('Error al actualizar favorito', error)
+    } catch (e) {
+      console.error('Error al marcar favorito', e)
       return false
     }
   }
 
   const totalContactos = computed(() => contactos.value.length)
-  const totalFavoritos = computed(() => contactos.value.filter(c => c.favorito).length)
-  const contactosActivos = computed(() => contactos.value.filter(c => c.estado === 'Activo'))
-  const contactoPorId = (id) => computed(() => contactos.value.find(c => c.id === id))
+  const totalFavoritos = computed(
+    () => contactos.value.filter(c => c.favorito).length
+  )
+  const contactosActivos = computed(
+    () => contactos.value.filter(c => c.estado === 'Activo')
+  )
+
+  const contactoPorId = (id) =>
+    computed(() => contactos.value.find(c => c.id === id)) // 👈 id string
 
   return {
     contactos,

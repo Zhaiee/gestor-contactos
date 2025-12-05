@@ -15,7 +15,9 @@ const router = useRouter()
 const toast = useToast()
 const store = useContactosStore()
 
-const contacto = computed(() => store.contactoPorId(route.params.id).value)
+const contacto = computed(
+  () => store.contactoPorId(route.params.id).value   // 👈 sin Number()
+)
 const usuarioRegistrado = ref(null)
 
 const volver = () => router.push('/contactos')

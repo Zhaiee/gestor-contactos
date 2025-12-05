@@ -20,23 +20,24 @@ const contactoInicial = {
 
 const guardar = async (datos) => {
   try {
-    const id = await store.crearContacto(datos)
+    const id = await store.crearContacto(datos) // 👈 await
+
     toast.add({
       severity: 'success',
       summary: 'Contacto creado',
       detail: 'Contacto creado correctamente',
       life: 3000,
     })
-    router.push(`/contactos/${id}`)
+
+    router.push(`/contactos/${id}`)             // 👈 id Firestore (string)
   } catch (error) {
-    const mensaje = error?.message || 'No se pudo crear el contacto'
+    console.error(error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: mensaje,
+      summary: 'Error al crear contacto',
+      detail: error.message || 'No se pudo crear el contacto',
       life: 4000,
     })
-    console.error('Error al crear contacto', error)
   }
 }
 
