@@ -42,11 +42,13 @@ const cargarUsuarioRegistrado = async () => {
   }
 
   try {
+    console.log('🔍 Buscando usuario con email:', contacto.value.email)
     const q = query(
       collection(db, 'users'),
       where('email', '==', contacto.value.email)
     )
     const snap = await getDocs(q)
+    console.log('📊 Usuarios encontrados:', snap.size)
 
     if (!snap.empty) {
       const docSnap = snap.docs[0]
@@ -54,8 +56,10 @@ const cargarUsuarioRegistrado = async () => {
         id: docSnap.id,
         ...docSnap.data(),
       }
+      console.log('✅ Usuario registrado encontrado:', usuarioRegistrado.value)
     } else {
       usuarioRegistrado.value = null
+      console.log('❌ No se encontró usuario con ese email')
     }
   } catch (error) {
     console.error('Error al verificar usuario registrado', error)
@@ -165,7 +169,7 @@ watch(
             <p class="status">Este contacto esta registrado en el sistema</p>
             <p class="name">{{ usuarioRegistrado.displayName || usuarioRegistrado.email }}</p>
             <Button
-              label="Iniciar chat"
+              label="Abrir chat"
               icon="pi pi-comments"
               severity="success"
               @click="iniciarChat"

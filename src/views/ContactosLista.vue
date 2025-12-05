@@ -8,14 +8,49 @@ import Column from 'primevue/column'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
+import { getDocs, query, collection, where } from 'firebase/firestore'
+import { db } from '../firebase'
 import { useContactosStore } from '../stores/contactos'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
 const store = useContactosStore()
+const authStore = useAuthStore()
 
 const filtro = ref('')
+
+// Verificar si un contacto está registrado para habilitar chat
+const verificarYAbrirChat = async (contacto) => {
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('email', '==', contacto.email)
+    )
+    const snap = await getDocs(q)
+
+    if (!snap.empty) {
+      const usuarioRegistrado = snap.docs[0]
+      router.push(`/chat/${usuarioRegistrado.id}`)
+    } else {
+      toast.add({
+        severity: 'warn',
+        summary: 'Usuario no registrado',
+        detail: 'Este contacto no está registrado en el sistema',
+        life: 3000,
+      })
+    }
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo abrir el chat',
+      life: 3000,
+    })
+    console.error('Error al abrir chat:', error)
+  }
+}
 
 const contactosFiltrados = computed(() => {
   const term = filtro.value.trim().toLowerCase()
@@ -135,7 +170,7 @@ const confirmEliminar = (id) => {
           />
         </template>
       </Column>
-      <Column header="Acciones" style="width: 170px">
+      <Column header="Acciones" style="width: 220px">
         <template #body="{ data }">
           <div class="actions">
             <Button
@@ -152,6 +187,14 @@ const confirmEliminar = (id) => {
               severity="info"
               @click="editar(data.id)"
               aria-label="Editar"
+            />
+            <Button
+              icon="pi pi-comments"
+              text
+              rounded
+              severity="success"
+              @click="verificarYAbrirChat(data)"
+              aria-label="Chat"
             />
             <Button
               icon="pi pi-trash"
