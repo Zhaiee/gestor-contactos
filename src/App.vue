@@ -45,6 +45,7 @@ watch(
       <!-- Menu solo si hay usuario logueado -->
       <nav v-if="usuario" class="app-nav">
         <RouterLink to="/contactos" class="nav-link">Contactos</RouterLink>
+        <RouterLink to="/mis-conversaciones" class="nav-link">Mis Conversaciones</RouterLink>
         <RouterLink to="/contactos/nuevo" class="nav-link">Nuevo contacto</RouterLink>
         <button class="nav-link nav-button" type="button" @click="logout">
           Cerrar sesion

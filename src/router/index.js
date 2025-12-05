@@ -7,6 +7,7 @@ import ContactoEditar from '../views/ContactoEditar.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import ChatView from '../views/ChatView.vue'
+import MisConversacionesView from '../views/MisConversacionesView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -56,6 +57,12 @@ const routes = [
     name: 'chat',
     component: ChatView,
     props: true,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/mis-conversaciones',
+    name: 'mis-conversaciones',
+    component: MisConversacionesView,
     meta: { requiresAuth: true },
   },
 ]
