@@ -5,8 +5,12 @@ import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
+import Dialog from 'primevue/dialog'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebase'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
+import { useContactosStore } from '../stores/contactos'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,16 +18,30 @@ const toast = useToast()
 
 const authStore = useAuthStore()
 const chatStore = useChatStore()
+const contactosStore = useContactosStore()
 
 const mensajeNuevo = ref('')
 const enviando = ref(false)
 const messagesContainer = ref(null)
+const mostrarDialogoAnadirContacto = ref(false)
+const nuevoContactoData = ref({
+  nombre: '',
+  email: '',
+  telefono: '',
+  empresa: '',
+})
 
 // ID del otro usuario desde la ruta
 const otroUid = computed(() => route.params.id)
 
 // Verificar que estamos logueados
 const usuarioActual = computed(() => authStore.user)
+
+// Verificar si el otro usuario ya está en contactos (por email)
+const usuarioYaEnContactos = computed(() => {
+  if (!chatStore.otroUsuario) return false
+  return contactosStore.contactos.some(c => c.email === chatStore.otroUsuario.email)
+})
 
 onMounted(() => {
   if (otroUid.value && usuarioActual.value) {
@@ -78,6 +96,64 @@ const formatearHora = (timestamp) => {
 
 // Determinar si es mensaje del usuario actual
 const esMensajePropio = (remitenteUid) => remitenteUid === usuarioActual.value.uid
+
+// Abrir diálogo para añadir contacto
+const abrirAnadirContacto = () => {
+  if (chatStore.otroUsuario) {
+    nuevoContactoData.value = {
+      nombre: chatStore.otroUsuario.displayName || '',
+      email: chatStore.otroUsuario.email || '',
+      telefono: '',
+      empresa: '',
+    }
+  }
+  mostrarDialogoAnadirContacto.value = true
+}
+
+// Añadir contacto
+const anadirContacto = async () => {
+  try {
+    if (!nuevoContactoData.value.nombre.trim()) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Nombre requerido',
+        detail: 'Por favor ingresa el nombre del contacto',
+        life: 3000,
+      })
+      return
+    }
+
+    const nuevoContacto = {
+      nombre: nuevoContactoData.value.nombre.trim(),
+      email: nuevoContactoData.value.email || '',
+      telefono: nuevoContactoData.value.telefono || '',
+      empresa: nuevoContactoData.value.empresa || '',
+      favorito: false,
+      estado: 'Activo',
+      userId: usuarioActual.value.uid,
+      creadoEn: serverTimestamp(),
+    }
+
+    await addDoc(collection(db, 'contactos'), nuevoContacto)
+
+    toast.add({
+      severity: 'success',
+      summary: 'Contacto añadido',
+      detail: 'Contacto agregado correctamente',
+      life: 3000,
+    })
+
+    mostrarDialogoAnadirContacto.value = false
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo añadir el contacto',
+      life: 3000,
+    })
+    console.error('Error al añadir contacto:', error)
+  }
+}
 </script>
 
 <template>
@@ -89,12 +165,21 @@ const esMensajePropio = (remitenteUid) => remitenteUid === usuarioActual.value.u
           Conversación con {{ chatStore.otroUsuario?.displayName || 'Usuario' }}
         </h2>
       </div>
-      <Button
-        label="Volver"
-        icon="pi pi-arrow-left"
-        outlined
-        @click="volver"
-      />
+      <div class="header-buttons">
+        <Button
+          v-if="!usuarioYaEnContactos"
+          label="Añadir contacto"
+          icon="pi pi-plus"
+          severity="success"
+          @click="abrirAnadirContacto"
+        />
+        <Button
+          label="Volver"
+          icon="pi pi-arrow-left"
+          outlined
+          @click="volver"
+        />
+      </div>
     </header>
 
     <Message
@@ -146,6 +231,67 @@ const esMensajePropio = (remitenteUid) => remitenteUid === usuarioActual.value.u
         />
       </div>
     </div>
+
+    <!-- Diálogo para añadir contacto -->
+    <Dialog
+      v-model:visible="mostrarDialogoAnadirContacto"
+      header="Añadir Contacto"
+      :modal="true"
+      class="dialog-aniadir-contacto"
+    >
+      <div class="dialog-content">
+        <div class="campo">
+          <label for="nombre">Nombre *</label>
+          <InputText
+            id="nombre"
+            v-model="nuevoContactoData.nombre"
+            placeholder="Nombre del contacto"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="email">Email</label>
+          <InputText
+            id="email"
+            v-model="nuevoContactoData.email"
+            placeholder="Email"
+            disabled
+          />
+        </div>
+
+        <div class="campo">
+          <label for="telefono">Teléfono</label>
+          <InputText
+            id="telefono"
+            v-model="nuevoContactoData.telefono"
+            placeholder="Teléfono"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="empresa">Empresa</label>
+          <InputText
+            id="empresa"
+            v-model="nuevoContactoData.empresa"
+            placeholder="Empresa"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button
+          label="Cancelar"
+          icon="pi pi-times"
+          outlined
+          @click="mostrarDialogoAnadirContacto = false"
+        />
+        <Button
+          label="Añadir"
+          icon="pi pi-check"
+          @click="anadirContacto"
+        />
+      </template>
+    </Dialog>
   </section>
 </template>
 
@@ -267,6 +413,34 @@ const esMensajePropio = (remitenteUid) => remitenteUid === usuarioActual.value.u
   margin-bottom: 12px;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dialog-content {
+  display: grid;
+  gap: 14px;
+  padding: 6px 0;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.campo :deep(.p-inputtext) {
+  width: 100%;
+}
+
 @media (max-width: 640px) {
   .panel {
     height: auto;
@@ -278,6 +452,11 @@ const esMensajePropio = (remitenteUid) => remitenteUid === usuarioActual.value.u
 
   .mensaje-contenido {
     max-width: 80%;
+  }
+
+  .header-buttons {
+    flex-direction: column;
+    width: 100%;
   }
 }
 </style>
