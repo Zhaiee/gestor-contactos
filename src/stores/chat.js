@@ -13,6 +13,8 @@ import {
   getDocs,
   doc,
   getDoc,
+  updateDoc,
+  collectionGroup,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuthStore } from './auth'
@@ -27,9 +29,15 @@ export const useChatStore = defineStore('chat', () => {
   const mensajes = ref([])
   const cargando = ref(false)
   const otroUsuario = ref(null)
+  const conversaciones = ref([])
   let unsubscribe = null
+  let unsubscribeConversaciones = null
 
   const authStore = useAuthStore()
+
+  const conversacionesSinLeer = computed(() => {
+    return conversaciones.value.filter(c => c.sinLeer > 0).length
+  })
 
   const limpiarSuscripcion = () => {
     if (unsubscribe) {
@@ -54,6 +62,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // Iniciar la suscripción a mensajes de una conversación
+  // Estructura: /chats/{chatId}/messages/{messageId}
   const iniciarChat = (otroUid) => {
     limpiarSuscripcion()
     mensajes.value = []
@@ -70,10 +79,10 @@ export const useChatStore = defineStore('chat', () => {
 
     const conversacionId = crearIdConversacion(user.uid, otroUid)
 
+    // Consultar mensajes en la subcolección /chats/{chatId}/messages
     const q = query(
-      collection(db, 'mensajes'),
-      where('conversacionId', '==', conversacionId),
-      orderBy('createdAt', 'asc'),
+      collection(db, `chats/${conversacionId}/messages`),
+      orderBy('timestamp', 'asc'),
       limit(100)
     )
 
@@ -85,6 +94,16 @@ export const useChatStore = defineStore('chat', () => {
           ...doc.data(),
         }))
         cargando.value = false
+        
+        // Marcar mensajes como leídos si son del otro usuario
+        snapshot.docs.forEach(doc => {
+          const data = doc.data()
+          if (data.from !== user.uid && !data.read) {
+            updateDoc(doc.ref, { read: true }).catch(err => 
+              console.error('Error marcando como leído:', err)
+            )
+          }
+        })
       },
       err => {
         console.error('Error al escuchar mensajes:', err)
@@ -103,12 +122,14 @@ export const useChatStore = defineStore('chat', () => {
     const conversacionId = crearIdConversacion(user.uid, otroUid)
 
     try {
-      await addDoc(collection(db, 'mensajes'), {
-        conversacionId,
-        remitenteUid: user.uid,
-        remitente: user.displayName || user.email,
-        contenido: contenido.trim(),
-        createdAt: serverTimestamp(),
+      // Crear estructura de mensaje según enunciado:
+      // {from, to, text, timestamp, read}
+      await addDoc(collection(db, `chats/${conversacionId}/messages`), {
+        from: user.uid,
+        to: otroUid,
+        text: contenido.trim(),
+        timestamp: serverTimestamp(),
+        read: false,
       })
     } catch (error) {
       console.error('Error al enviar mensaje:', error)
@@ -124,13 +145,58 @@ export const useChatStore = defineStore('chat', () => {
     otroUsuario.value = null
   }
 
+  // Cargar todas las conversaciones del usuario actual con listener en tiempo real
+  const cargarConversaciones = () => {
+    if (!authStore.user) return
+
+    // Limpiar listener anterior si existe
+    if (unsubscribeConversaciones) {
+      unsubscribeConversaciones()
+    }
+
+    // Usar listener en tiempo real en collectionGroup
+    unsubscribeConversaciones = onSnapshot(
+      collectionGroup(db, 'messages'),
+      snapshot => {
+        const conversacionesMap = new Map()
+
+        snapshot.docs.forEach(doc => {
+          const data = doc.data()
+          if (data.from === authStore.user.uid || data.to === authStore.user.uid) {
+            const otroUid = data.from === authStore.user.uid ? data.to : data.from
+
+            if (!conversacionesMap.has(otroUid)) {
+              conversacionesMap.set(otroUid, {
+                otroUid,
+                sinLeer: 0,
+              })
+            }
+
+            const conv = conversacionesMap.get(otroUid)
+            if (data.to === authStore.user.uid && !data.read) {
+              conv.sinLeer++
+            }
+          }
+        })
+
+        conversaciones.value = Array.from(conversacionesMap.values())
+      },
+      error => {
+        console.error('Error al escuchar conversaciones:', error)
+      }
+    )
+  }
+
   return {
     mensajes,
     cargando,
     otroUsuario,
+    conversaciones,
+    conversacionesSinLeer,
     iniciarChat,
     enviarMensaje,
     cerrarChat,
     totalMensajes,
+    cargarConversaciones,
   }
 })

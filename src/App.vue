@@ -9,18 +9,38 @@ import { computed, watch } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
+import { useConfirm } from 'primevue/useconfirm'
+import Badge from 'primevue/badge'
 import { useAuthStore } from './stores/auth'
 import { useContactosStore } from './stores/contactos'
+import { useChatStore } from './stores/chat'
 
 const authStore = useAuthStore()
 const contactosStore = useContactosStore()
+const chatStore = useChatStore()
 const router = useRouter()
+const confirm = useConfirm()
 
 const usuario = computed(() => authStore.user)
+const conversacionesSinLeer = computed(() => {
+  return chatStore.conversacionesSinLeer
+})
 
 const logout = async () => {
-  await authStore.logout()
-  router.push('/login')   // Obligamos a ir al login tras cerrar sesion
+  confirm.require({
+    message: '¿Estás seguro de que quieres cerrar sesión?',
+    header: 'Cerrar sesión',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      await authStore.logout()
+      router.push('/login')
+    },
+    reject: () => {
+      // El usuario canceló
+    },
+    acceptLabel: 'Sí',
+    rejectLabel: 'No'
+  })
 }
 
 // Sincroniza la suscripcion de contactos con el usuario actual
@@ -28,6 +48,7 @@ watch(
   usuario,
   () => {
     contactosStore.initContactos()
+    chatStore.cargarConversaciones()
   },
   { immediate: true }
 )
@@ -45,7 +66,15 @@ watch(
       <!-- Menu solo si hay usuario logueado -->
       <nav v-if="usuario" class="app-nav">
         <RouterLink to="/contactos" class="nav-link">Contactos</RouterLink>
-        <RouterLink to="/mis-conversaciones" class="nav-link">Mis Conversaciones</RouterLink>
+        <RouterLink to="/mis-conversaciones" class="nav-link nav-link-chat">
+          Mis Conversaciones
+          <Badge
+            v-if="conversacionesSinLeer > 0"
+            :value="conversacionesSinLeer"
+            severity="success"
+            class="badge-nav"
+          />
+        </RouterLink>
         <RouterLink to="/contactos/nuevo" class="nav-link">Nuevo contacto</RouterLink>
         <button class="nav-link nav-button" type="button" @click="logout">
           Cerrar sesion
@@ -117,6 +146,17 @@ watch(
   text-decoration: none;
   font-weight: 600;
   transition: all 0.2s ease;
+}
+
+.nav-link-chat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-nav {
+  padding: 2px 6px;
+  font-size: 0.7rem;
 }
 
 .nav-link:hover,

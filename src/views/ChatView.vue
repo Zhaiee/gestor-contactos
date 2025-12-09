@@ -95,7 +95,7 @@ const formatearHora = (timestamp) => {
 }
 
 // Determinar si es mensaje del usuario actual
-const esMensajePropio = (remitenteUid) => remitenteUid === usuarioActual.value.uid
+const esMensajePropio = (fromUid) => fromUid === usuarioActual.value.uid
 
 // Abrir diálogo para añadir contacto
 const abrirAnadirContacto = () => {
@@ -205,11 +205,11 @@ const anadirContacto = async () => {
         <div
           v-for="mensaje in chatStore.mensajes"
           :key="mensaje.id"
-          :class="['mensaje', esMensajePropio(mensaje.remitenteUid) ? 'propio' : 'otro']"
+          :class="['mensaje', esMensajePropio(mensaje.from) ? 'propio' : 'otro']"
         >
           <div class="mensaje-contenido">
-            <p class="mensaje-texto">{{ mensaje.contenido }}</p>
-            <span class="mensaje-hora">{{ formatearHora(mensaje.createdAt) }}</span>
+            <p class="mensaje-texto">{{ mensaje.text }}</p>
+            <span class="mensaje-hora">{{ formatearHora(mensaje.timestamp) }}</span>
           </div>
         </div>
       </div>
