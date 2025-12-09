@@ -72,8 +72,17 @@ const iniciarChat = () => {
   router.push(`/chat/${usuarioRegistrado.value.id}`)
 }
 
-const invitar = () => {
-  router.push('/registro')
+const invitar = (email) => {
+  const asunto = encodeURIComponent("Únete a mi agenda de contactos")
+  const cuerpo = encodeURIComponent(
+    "Hola,\n\nEstoy usando una aplicación para gestionar contactos y chatear fácilmente.\n" +
+    "Puedes registrarte aquí:\nhttps://gestor-contactos.web.app/registro\n\n" +
+    "Cuando te registres, podré escribirte directamente desde la aplicación.\n\n" +
+    "¡Te espero!"
+  )
+
+  const enlace = `mailto:${email}?subject=${asunto}&body=${cuerpo}`
+  window.location.href = enlace
 }
 
 watch(
@@ -183,7 +192,7 @@ watch(
               icon="pi pi-send"
               severity="info"
               outlined
-              @click="invitar"
+              @click="invitar(contacto.email)"
             />
           </div>
         </div>
