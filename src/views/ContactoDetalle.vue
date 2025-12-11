@@ -29,8 +29,8 @@ const toggleFavorito = () => {
   toast.add({
     severity: 'info',
     summary: contacto.value.favorito
-      ? 'Marcado como favorito'
-      : 'Quitado de favoritos',
+      ? 'Quitado de favoritos'
+      : 'Marcado como favorito',
     life: 2000,
   })
 }

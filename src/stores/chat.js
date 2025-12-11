@@ -104,6 +104,9 @@ export const useChatStore = defineStore('chat', () => {
             )
           }
         })
+        
+        // Actualizar contador de conversaciones sin leer
+        cargarConversaciones()
       },
       err => {
         console.error('Error al escuchar mensajes:', err)
@@ -145,46 +148,37 @@ export const useChatStore = defineStore('chat', () => {
     otroUsuario.value = null
   }
 
-  // Cargar todas las conversaciones del usuario actual con listener en tiempo real
-  const cargarConversaciones = () => {
+  // Cargar todas las conversaciones del usuario actual
+  const cargarConversaciones = async () => {
     if (!authStore.user) return
 
-    // Limpiar listener anterior si existe
-    if (unsubscribeConversaciones) {
-      unsubscribeConversaciones()
-    }
+    try {
+      const allMessages = await getDocs(collectionGroup(db, 'messages'))
+      const conversacionesMap = new Map()
 
-    // Usar listener en tiempo real en collectionGroup
-    unsubscribeConversaciones = onSnapshot(
-      collectionGroup(db, 'messages'),
-      snapshot => {
-        const conversacionesMap = new Map()
+      allMessages.forEach(doc => {
+        const data = doc.data()
+        if (data.from === authStore.user.uid || data.to === authStore.user.uid) {
+          const otroUid = data.from === authStore.user.uid ? data.to : data.from
 
-        snapshot.docs.forEach(doc => {
-          const data = doc.data()
-          if (data.from === authStore.user.uid || data.to === authStore.user.uid) {
-            const otroUid = data.from === authStore.user.uid ? data.to : data.from
-
-            if (!conversacionesMap.has(otroUid)) {
-              conversacionesMap.set(otroUid, {
-                otroUid,
-                sinLeer: 0,
-              })
-            }
-
-            const conv = conversacionesMap.get(otroUid)
-            if (data.to === authStore.user.uid && !data.read) {
-              conv.sinLeer++
-            }
+          if (!conversacionesMap.has(otroUid)) {
+            conversacionesMap.set(otroUid, {
+              otroUid,
+              sinLeer: 0,
+            })
           }
-        })
 
-        conversaciones.value = Array.from(conversacionesMap.values())
-      },
-      error => {
-        console.error('Error al escuchar conversaciones:', error)
-      }
-    )
+          const conv = conversacionesMap.get(otroUid)
+          if (data.to === authStore.user.uid && !data.read) {
+            conv.sinLeer++
+          }
+        }
+      })
+
+      conversaciones.value = Array.from(conversacionesMap.values())
+    } catch (error) {
+      console.error('Error al cargar conversaciones:', error)
+    }
   }
 
   return {
